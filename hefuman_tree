@@ -1,0 +1,228 @@
+#include<stdio.h>
+#include <iostream>
+#include <stdlib.h>
+#include <string.h>
+typedef struct TreeNode//存放节点信息
+{
+    int weight;//编码对象，也用做权重，eg： 34 权重为0.34 编码为0101(虚构用于举例）
+    struct TreeNode *child[2],*parents;
+    char ju;//用于存储路径是0还是1，便于后续记录
+}tree;
+typedef struct me//存储数据，并记录所在节点，同时标记是否删除
+{
+    int fig;//要求输入的数字
+    tree *root;//存放fig所在节点
+    int Delete;//标记是否删除
+}me;
+typedef struct Allnum//用于建立数组，存放 me元素，并且记录数组长度。
+{
+     me *data;
+    int most;
+}allnum;
+typedef struct ma//用于存储赫夫曼编码
+{
+    int major;
+    char *passwords;
+}ma;
+void getnum(allnum *&num);//进行输入
+int FoundMin(allnum *&num);//只传回地址，暂时不删，还有信息未读取。
+void Increase(allnum *&num,tree *head);//将新的带权节点加入数据中;
+void CreateTree(Allnum *&num,int *p,tree **leaf );//将两个最小节点结合,p1代表的是较小的那个值，保证较小节点在左边。
+void Firstprint(tree *root);//前序遍历，用于调试。
+void FillLib(ma **lib,tree **leaf,int n);//编码保存，实际应用时可以存储到文件中。
+char * FanZhuan(char *str);//字符串翻转
+void Slove(char *putin,ma **lib,int n);//译码
+void PutInWPL(ma **lib,int n);//根据权重输出平均码长；
+void Printtree(tree **leaf,int n);//比较low的可视化。
+int sign=0;//存储编码用于标记
+int main()
+{
+
+     printf("How many num do you want operate:");
+     allnum *num=(allnum*)malloc(sizeof(allnum));
+     scanf("%d",&num->most);
+     printf("please put in nums you want to operate ;");
+     getnum(num);
+     int p[2]={0};
+     tree **leaf=(tree**)malloc(sizeof(tree *)*num->most);//用于保存叶子节点
+     ma **lib=(ma **)malloc(sizeof(ma*)*num->most);//存储编码
+     int n=num->most;
+     while (1)
+     {
+         for (int i = 0; i < 2; i++)
+             p[i] = FoundMin(num);
+         if (p[0] >= 0 && p[1] >= 0)
+             CreateTree(num, p,leaf);
+         else
+             break;
+     }
+     tree * root1=(num->data+(num->most-1))->root;
+     Firstprint(root1);
+     puts("");
+     //tree *te=leaf[0];
+     FillLib(lib,leaf,n);
+     Printtree(leaf,n);
+     PutInWPL(lib,n);
+     for(int i=0;i<n;i++)
+     printf(" %d %s\n",lib[i]->major,lib[i]->passwords);
+     printf("require 3: please put in the str you want to decode ;\n");
+     char putin[100];
+     scanf("%s",putin);
+     Slove(putin,lib,n);
+}
+void getnum(allnum *&num)//获取需要编码的数据
+{
+    num->data=(me *)malloc(sizeof(me)*num->most);
+    for(int i=0;i<num->most;i++)
+    {
+        scanf("%d",&((num->data+i)->fig));
+        (num->data+i)->root=NULL;
+        ((num->data+i)->Delete)=0;
+    }
+}
+int FoundMin(allnum *&num)//只传回地址，暂时不删，还有信息未读取。不还是删了吧，不过是打个标记。还能用
+{
+    int te[2]={0};
+    te[0]=-1;
+    int check=0;
+    for(int i=0;i<num->most;i++)
+    {
+       if ((te[0]==-1||te[0]>(num->data+i)->fig)&&(num->data+i)->Delete==0)
+       {
+           te[0]=(num->data+i)->fig;
+           te[1]=i;
+       }
+       else if ((num->data+i)->Delete==1)
+           check++;
+    }
+    (num->data+te[1])->Delete=1;
+    if (check==(num->most))
+        return -1;
+    else
+        return te[1];
+}
+void Increase(allnum *&num,tree *head)//将新的带权节点加入数据中
+{
+    num->data = (me *) realloc(num->data, sizeof(me) * (++(num->most)));
+    (num->data + (num->most - 1))->fig = head->weight;
+    (num->data + (num->most - 1))->Delete = 0;
+    (num->data + (num->most - 1))->root = head;
+}
+void CreateTree(Allnum *&num,int*p,tree **leaf)//将两个最小节点结合,p1代表的是较小的那个值
+{
+    tree *head=(tree *)malloc(sizeof(tree));
+    head->child[0]=head->child[1]=0;
+    head->weight=0;
+    head->parents=NULL;
+    tree *te;
+    for(int i=0;i<2;i++)
+    {
+        if ((num->data+p[i])->root==NULL)
+        {
+            te = (tree *) malloc(sizeof(tree));
+            te->weight = (num->data + p[i])->fig;
+            te->child[0] = te->child[1] = 0;
+            (num->data+p[i])->root=te;
+            *(leaf+(sign++))=te;//将叶子节点保存
+        }
+        head->child[i]=(num->data+p[i])->root;
+        head->child[i]->ju=i+48;
+        (num->data+p[i])->root->parents=head;
+        head->weight+=(num->data+p[i])->fig;
+    }
+    Increase(num,head);
+}
+void Firstprint(tree *root)//先序遍历
+{
+    if (root!=NULL)
+    {
+        printf(" %d",root->weight);
+        Firstprint(root->child[0]);
+        Firstprint(root->child[1]);
+    }
+    else
+        return ;
+}
+void FillLib(ma **lib,tree **leaf,int n)//存储编码
+{
+    int re=0;
+    for(int i=0;i<n;i++)
+    {
+        lib[i]=(ma *)malloc(sizeof(ma));
+        lib[i]->major=leaf[i]->weight;
+        lib[i]->passwords=NULL;
+        tree *te=leaf[i];
+        while (te->parents!=NULL)
+        {
+            lib[i]->passwords=(char *)realloc(lib[i]->passwords,sizeof(char)*(++re));
+            lib[i]->passwords[re-1]=te->ju;
+            te=te->parents;
+        }
+        lib[i]->passwords[re]='\0';
+        FanZhuan(lib[i]->passwords);
+        re=0;
+    }
+
+}
+char * FanZhuan(char *str)//翻转字符串
+{
+    int n=strlen(str);
+    for(int i=0;i<n/2;i++)
+    {
+        char te=str[i];
+        str[i]=str[n-1-i];
+        str[n-1-i]=te;
+    }
+    return str;
+}
+void Slove(char *putin,ma **lib,int n)//解码
+{
+    int i;
+    while (*putin!='\0')
+    {
+        for (i = 0; i < n; i++)
+        {
+            if (!strncmp(putin, lib[i]->passwords, strlen(lib[i]->passwords))) {
+                printf("%d ", lib[i]->major);
+                putin += strlen(lib[i]->passwords);
+                break;
+            }
+        }
+        if (i==n)
+        {
+            printf("\nerror ,there some str can't be decode!!!");
+            break;
+        }
+    }
+}
+void PutInWPL(ma **lib,int n)//根据权重输出平均码长
+{
+    double WPL=0.0;
+    for(int i=0;i<n;i++)
+    {
+        WPL+=strlen(lib[i]->passwords)*lib[i]->major;
+    }
+    WPL/=100;
+    printf("require 2: The average WPL is %.4f \n",WPL);
+}
+void Printtree(tree **leaf,int n)
+{
+    printf("require 4: you can see the tree:");
+  tree *te;
+    for(int i=0;i<n;i++)
+    {
+        te=leaf[i];
+        puts("");
+        while (te!=NULL)
+        {
+            if (te->parents!=NULL)
+            {
+                printf("%d .(%c)<- ", te->weight, te->ju);
+            }
+            else
+                printf("%d",te->weight);
+            te=te->parents;
+        }
+    }
+   puts("");
+}
